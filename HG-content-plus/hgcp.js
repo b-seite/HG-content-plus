@@ -55,6 +55,7 @@
 		btn.style.right = '';
 		btn.style.width = size + 'px';
 		btn.style.height = size + 'px';
+		btn.style.margin = '0';
 
 		if (pos.vert === 'oben') { btn.style.top = distV + 'px'; }
 		else { btn.style.bottom = distV + 'px'; }

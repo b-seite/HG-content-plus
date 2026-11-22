@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HG Content Plus
  * Description: Blendet über Bildern, deren Container die Klasse "mpii" trägt, einen runden "+-Button ein, der einen dem Bild zugeordneten, formatierten Text zeigt (Text pro Bild in der Mediathek, Editor auf der Datei-Detailseite). Optik unter Einstellungen → Content Plus. Updates erfolgen automatisch aus dem GitHub-Repo HG-content-plus.
- * Version: 3.2.1
+ * Version: 3.2.2
  * Author: Boris Beplate
  * License: GPL-2.0-or-later
  * Text Domain: hg-content-plus
@@ -393,11 +393,11 @@ final class HG_Content_Plus {
 	public static function enqueue() {
 		$s = self::settings();
 
-		wp_register_style( 'hgcp', false, [], '3.2.1' );
+		wp_register_style( 'hgcp', false, [], '3.2.2' );
 		wp_enqueue_style( 'hgcp' );
 		wp_add_inline_style( 'hgcp', self::css( $s ) );
 
-		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.2.1', true );
+		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.2.2', true );
 		wp_localize_script( 'hgcp', 'HGCPlus', [
 			'ajax'     => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'mpii_get' ),
@@ -424,7 +424,7 @@ final class HG_Content_Plus {
 		return <<<CSS
 .mpii{position:relative;display:block}
 .mpii-host{position:relative;display:block}
-.mpii .mpii-toggle{position:absolute;width:{$size}px;height:{$size}px;border-radius:50%;background:{$btn_bg};border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;transition:background .25s ease}
+.mpii .mpii-toggle{position:absolute;width:{$size}px;height:{$size}px;border-radius:50%;background:{$btn_bg};border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;margin:0;z-index:2;transition:background .25s ease}
 .mpii .mpii-toggle:hover{filter:brightness(.92)}
 .mpii .mpii-toggle svg{width:54%;height:54%;display:block}
 .mpii .mpii-box{position:absolute;padding:10px 20px;line-height:1.8;background:{$box_bg};z-index:3;box-shadow:0 8px 20px rgba(0,0,0,.15);opacity:0;transition:opacity {$fade}ms ease;max-width:calc(100% - 8px)}
