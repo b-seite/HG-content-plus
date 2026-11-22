@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HG Content Plus
  * Description: Blendet über Bildern, deren Container die Klasse "mpii" trägt, einen runden "+-Button ein, der einen dem Bild zugeordneten, formatierten Text zeigt (Text pro Bild in der Mediathek, Editor auf der Datei-Detailseite). Optik unter Einstellungen → Content Plus. Updates erfolgen automatisch aus dem GitHub-Repo HG-content-plus.
- * Version: 3.2.0
+ * Version: 3.2.1
  * Author: Boris Beplate
  * License: GPL-2.0-or-later
  * Text Domain: hg-content-plus
@@ -393,11 +393,11 @@ final class HG_Content_Plus {
 	public static function enqueue() {
 		$s = self::settings();
 
-		wp_register_style( 'hgcp', false, [], '3.2.0' );
+		wp_register_style( 'hgcp', false, [], '3.2.1' );
 		wp_enqueue_style( 'hgcp' );
 		wp_add_inline_style( 'hgcp', self::css( $s ) );
 
-		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.2.0', true );
+		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.2.1', true );
 		wp_localize_script( 'hgcp', 'HGCPlus', [
 			'ajax'     => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'mpii_get' ),
@@ -436,6 +436,12 @@ CSS;
 
 	/* ---------- Ajax ---------- */
 
+	/** Ausgabe des Infotexts: wpautop macht aus blossen Zeilenumbruechen echte <p>/<br>-Elemente. */
+	public static function render_info( $attachment_id ) {
+		$raw = (string) get_post_meta( $attachment_id, self::META_KEY, true );
+		return wpautop( $raw );
+	}
+
 	/** Findet zu einer Bild-URL den Attachment-Post und liefert den gespeicherten Infotext. */
 	public static function ajax_get() {
 		check_ajax_referer( 'mpii_get', 'nonce' );
@@ -446,7 +452,7 @@ CSS;
 		}
 
 		$attachment_id = self::attachment_id_by_url( $src );
-		$html          = $attachment_id ? (string) get_post_meta( $attachment_id, self::META_KEY, true ) : '';
+		$html          = $attachment_id ? self::render_info( (int) $attachment_id ) : '';
 
 		wp_send_json_success( [ 'html' => $html ] );
 	}
@@ -464,7 +470,7 @@ CSS;
 		$map = [];
 		foreach ( $srcs as $src ) {
 			$attachment_id = self::attachment_id_by_url( $src );
-			$map[ $src ]   = $attachment_id ? (string) get_post_meta( $attachment_id, self::META_KEY, true ) : '';
+			$map[ $src ]   = $attachment_id ? self::render_info( (int) $attachment_id ) : '';
 		}
 
 		wp_send_json_success( [ 'map' => $map ] );
