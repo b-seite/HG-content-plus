@@ -1,4 +1,4 @@
-/* HG Content Plus – Frontend (v3.0.0: Position/Offsets komplett konfigurierbar, Popup-Anker am +-Mittelpunkt) */
+/* HG Content Plus – Frontend (v3.0.1: Popup-Platzierung über Layout-offsets statt getBoundingClientRect) */
 (function () {
 	'use strict';
 
@@ -8,23 +8,6 @@
 
 	function num(v, fallback) {
 		return (typeof v === 'number' && isFinite(v)) ? v : fallback;
-	}
-
-	/* Position: links/rechts (side) und oben/unten (vert) für einen Host bestimmen. */
-	function positionOf(hostEl, containerEl) {
-		var c = conf();
-		var side = (typeof c.sidePos === 'string') ? c.sidePos : 'rechts';
-		var vert = (typeof c.vertPos === 'string') ? c.vertPos : 'unten';
-
-		/* Pro-Element-Overrides per Klasse (auch am Galerie-Wrapper):
-		   mpii-links / mpii-rechts, mpii-oben / mpii-unten */
-		var scope = containerEl || hostEl;
-		if (scope.classList.contains('mpii-links')) { side = 'links'; }
-		else if (scope.classList.contains('mpii-rechts')) { side = 'rechts'; }
-		if (scope.classList.contains('mpii-oben')) { vert = 'oben'; }
-		else if (scope.classList.contains('mpii-unten')) { vert = 'unten'; }
-
-		return { side: side, vert: vert };
 	}
 
 	/* Optimole o. ä. CDN-URLs enthalten die Original-URL eingebettet (.../https://domain/...). */
@@ -43,9 +26,25 @@
 		return normalize(img.currentSrc || img.src || '');
 	}
 
-	function placeButton(btn, hostEl, containerEl) {
+	/* Position: links/rechts (side) und oben/unten (vert) bestimmen. */
+	function positionOf(containerEl) {
 		var c = conf();
-		var pos = positionOf(hostEl, containerEl);
+		var side = (typeof c.sidePos === 'string') ? c.sidePos : 'rechts';
+		var vert = (typeof c.vertPos === 'string') ? c.vertPos : 'unten';
+
+		var scope = containerEl || null;
+		if (scope && scope.classList) {
+			if (scope.classList.contains('mpii-links')) { side = 'links'; }
+			else if (scope.classList.contains('mpii-rechts')) { side = 'rechts'; }
+			if (scope.classList.contains('mpii-oben')) { vert = 'oben'; }
+			else if (scope.classList.contains('mpii-unten')) { vert = 'unten'; }
+		}
+		return { side: side, vert: vert };
+	}
+
+	function placeButton(btn, containerEl) {
+		var c = conf();
+		var pos = positionOf(containerEl);
 		var size = num(c.size, 50);
 		var distS = num(c.distSide, 20);
 		var distV = num(c.distVert, 20);
@@ -54,6 +53,8 @@
 		btn.style.bottom = '';
 		btn.style.left = '';
 		btn.style.right = '';
+		btn.style.width = size + 'px';
+		btn.style.height = size + 'px';
 
 		if (pos.vert === 'oben') {
 			btn.style.top = distV + 'px';
@@ -69,46 +70,45 @@
 	}
 
 	/* Popup platzieren: Bezugspunkt = Mittelpunkt des +-Buttons, plus Offsets.
-	   0/0 = Kante des Popups am Mittelpunkt; das Popup öffnet automatisch
-	   zur gegenüberliegenden Seite des Buttons. */
-	function placeBox(btn, box, hostEl, pos) {
+	   0/0 = Kante des Popups am Mittelpunkt; das Popup öffnet automatisch zur
+	   gegenüberliegenden Seite des Buttons. Rechnet rein auf Layout-Basis
+	   (offsetLeft/offsetTop im Host-Koordinatensystem), dadurch robust gegen
+	   Transforms, kollabierte Vorfahren und Lazy-Load-Effrscheinen. */
+	function placeBox(btn, box, img, hostEl, pos) {
 		var c = conf();
 		var offX = num(c.offX, 0);
 		var offY = num(c.offY, 0);
 
-		var hb = hostEl.getBoundingClientRect();
-		var bb = btn.getBoundingClientRect();
-
-		/* Mittelpunkt des Buttons in Host-Koordinaten. */
-		var cx = bb.left - hb.left + bb.width / 2 + offX;
-		var cy = bb.top - hb.top + bb.height / 2 + offY;
-
 		var w = box.offsetWidth;
 		var h = box.offsetHeight;
+		if (!w || !h) { return; }
+
+		/* Mittelpunkt des Buttons in Host-Koordinaten. */
+		var bx = btn.offsetLeft + btn.offsetWidth / 2 + offX;
+		var by = btn.offsetTop + btn.offsetHeight / 2 + offY;
 
 		var left, top;
-
-		/* Horizontal: Button rechts -> Popup öffnet nach links (rechte Kante am Bezugspunkt),
-		   Button links -> Popup öffnet nach rechts (linke Kante am Bezugspunkt). */
 		if (pos.side === 'rechts') {
-			left = cx - w;
+			left = bx - w;
 		} else {
-			left = cx;
+			left = bx;
 		}
-
-		/* Vertikal: Button unten -> Popup öffnet nach oben (untere Kante am Bezugspunkt),
-		   Button oben -> Popup öffnet nach unten (obere Kante am Bezugspunkt). */
 		if (pos.vert === 'unten') {
-			top = cy - h;
+			top = by - h;
 		} else {
-			top = cy;
+			top = by;
 		}
 
-		/* Im Host halten (keine Überstände). */
-		var maxLeft = Math.max(4, hb.width - w - 4);
-		var maxTop = Math.max(4, hb.height - h - 4);
-		left = Math.min(Math.max(left, 4), maxLeft);
-		top = Math.min(Math.max(top, 4), maxTop);
+		/* Innerhalb der Bildfläche (+ Button-Bereich) halten. */
+		var imgL = img.offsetLeft;
+		var imgT = img.offsetTop;
+		var minX = Math.min(imgL, btn.offsetLeft);
+		var minY = Math.min(imgT, btn.offsetTop);
+		var maxX = Math.max(imgL + img.offsetWidth, btn.offsetLeft + btn.offsetWidth) - w;
+		var maxY = Math.max(imgT + img.offsetHeight, btn.offsetTop + btn.offsetHeight) - h;
+
+		left = Math.min(Math.max(left, minX), Math.max(minX, maxX));
+		top = Math.min(Math.max(top, minY), Math.max(minY, maxY));
 
 		box.style.left = Math.round(left) + 'px';
 		box.style.top = Math.round(top) + 'px';
@@ -141,14 +141,23 @@
 
 	function build(img, container, html) {
 		var c = conf();
-		/* Pro Bild: Button + Box in den nächsten Block-Wrapper des Bildes. */
-		var host = img.closest('.element-inner') || img.closest('.element') || img.parentNode || container;
+		/* Host = der direkte Anker/das direkte Elternelement des Bildes; Inline-Styles
+		   erzwingen einen sauberen Positionskontext (robust gegen Theme-Layouts).
+		   host ist damit der offsetParent für Button, Box UND Bild. */
+		var direct = img.parentNode;
+		var host = direct && direct.tagName === 'A' ? direct : (direct || container);
+
 		host.classList.add('mpii-host');
+		host.style.position = 'relative';
+		if (host.ownerDocument.defaultView.getComputedStyle(host).display === 'inline') {
+			host.style.display = 'block';
+		}
 
 		var box = document.createElement('div');
 		box.className = 'mpii-box';
 		box.innerHTML = '<div class="mpii-box-inner">' + html + '</div>';
 		box.setAttribute('hidden', 'hidden');
+		box.style.margin = '0';
 
 		var btn = document.createElement('button');
 		btn.type = 'button';
@@ -160,7 +169,7 @@
 		host.appendChild(btn);
 		host.appendChild(box);
 
-		var pos = placeButton(btn, host, container);
+		var pos = placeButton(btn, container);
 		var fade = num(c.fade, 500);
 
 		function isOpen() { return !box.hasAttribute('hidden'); }
@@ -174,9 +183,11 @@
 				window.setTimeout(function () { box.setAttribute('hidden', 'hidden'); }, fade);
 				btn.setAttribute('aria-expanded', 'false');
 			} else {
-				placeBox(btn, box, host, positionOf(host, container));
+				/* Erst unsichtbar Platz messen, dann positionieren, dann einblenden. */
+				box.style.visibility = 'hidden';
 				box.removeAttribute('hidden');
-				placeBox(btn, box, host, positionOf(host, container));
+				placeBox(btn, box, img, host, pos);
+				box.style.visibility = '';
 				void box.offsetWidth; /* Reflow, damit die Opacity-Transition greift */
 				box.classList.add('mpii-open');
 				btn.setAttribute('aria-expanded', 'true');

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HG Content Plus
  * Description: Blendet über Bildern, deren Container die Klasse "mpii" trägt, einen runden "+-Button ein, der einen dem Bild zugeordneten, formatierten Text zeigt (Text pro Bild in der Mediathek, Editor auf der Datei-Detailseite). Optik unter Einstellungen → Content Plus. Updates erfolgen automatisch aus dem GitHub-Repo HG-content-plus.
- * Version: 3.0.0
+ * Version: 3.0.1
  * Author: Boris Beplate
  * License: GPL-2.0-or-later
  * Text Domain: hg-content-plus
@@ -367,11 +367,11 @@ final class HG_Content_Plus {
 	public static function enqueue() {
 		$s = self::settings();
 
-		wp_register_style( 'hgcp', false, [], '3.0.0' );
+		wp_register_style( 'hgcp', false, [], '3.0.1' );
 		wp_enqueue_style( 'hgcp' );
 		wp_add_inline_style( 'hgcp', self::css( $s ) );
 
-		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.0.0', true );
+		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.0.1', true );
 		wp_localize_script( 'hgcp', 'HGCPlus', [
 			'ajax'     => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'mpii_get' ),
