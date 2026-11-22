@@ -118,16 +118,22 @@
 		svg.setAttribute('aria-hidden', 'true');
 		svg.setAttribute('focusable', 'false');
 
-		[ 'M50 ' + inset + ' V' + (100 - inset), 'M' + inset + ' 50 H' + (100 - inset) ].forEach(function (d) {
+		function bar(d) {
 			var line = document.createElementNS(ns, 'path');
 			line.setAttribute('d', d);
 			line.setAttribute('stroke', 'rgba(0,0,0,0.7)');
 			line.setAttribute('stroke-width', strokeWidth);
 			line.setAttribute('stroke-linecap', 'round');
 			line.setAttribute('fill', 'none');
-			svg.appendChild(line);
-		});
-		return svg;
+			return line;
+		}
+
+		/* [0] = vertikaler Balken (wird bei "-" ausgeblendet), [1] = horizontaler. */
+		var vertical = bar('M50 ' + inset + ' V' + (100 - inset));
+		var horizontal = bar('M' + inset + ' 50 H' + (100 - inset));
+		svg.appendChild(vertical);
+		svg.appendChild(horizontal);
+		return { svg: svg, vertical: vertical };
 	}
 
 	function build(img, container, html) {
@@ -161,7 +167,9 @@
 		btn.className = 'mpii-toggle';
 		btn.setAttribute('aria-expanded', 'false');
 		btn.setAttribute('aria-label', 'Bildinformationen anzeigen');
-		btn.appendChild(plusSvg());
+		var parts = plusSvg();
+		btn.appendChild(parts.svg);
+		var showMinus = !!conf().plusMinus;
 
 		host.appendChild(btn);
 		host.appendChild(box);
@@ -179,6 +187,7 @@
 				box.classList.remove('mpii-open');
 				window.setTimeout(function () { box.setAttribute('hidden', 'hidden'); }, fade);
 				btn.setAttribute('aria-expanded', 'false');
+				if (showMinus) { parts.vertical.style.display = ''; } /* wieder + */
 			} else {
 				/* Erst unsichtbar Platz messen, dann positionieren, dann einblenden. */
 				box.style.visibility = 'hidden';
@@ -188,6 +197,7 @@
 				void box.offsetWidth; /* Reflow, damit die Opacity-Transition greift */
 				box.classList.add('mpii-open');
 				btn.setAttribute('aria-expanded', 'true');
+				if (showMinus) { parts.vertical.style.display = 'none'; } /* wird zu - */
 			}
 		});
 	}

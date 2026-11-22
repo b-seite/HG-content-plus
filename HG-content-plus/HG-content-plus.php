@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HG Content Plus
  * Description: Blendet über Bildern, deren Container die Klasse "mpii" trägt, einen runden "+-Button ein, der einen dem Bild zugeordneten, formatierten Text zeigt (Text pro Bild in der Mediathek, Editor auf der Datei-Detailseite). Optik unter Einstellungen → Content Plus. Updates erfolgen automatisch aus dem GitHub-Repo HG-content-plus.
- * Version: 3.2.2
+ * Version: 3.3.0
  * Author: Boris Beplate
  * License: GPL-2.0-or-later
  * Text Domain: hg-content-plus
@@ -40,6 +40,7 @@ final class HG_Content_Plus {
 			'fade'       => '500',
 			'plus_width' => '10',
 			'plus_len'   => '56',
+			'plus_minus' => '0',
 		];
 	}
 
@@ -204,6 +205,9 @@ final class HG_Content_Plus {
 		$fade        = isset( $in['fade'] ) ? (int) $in['fade'] : (int) $defaults['fade'];
 		$out['fade'] = (string) max( 100, min( 3000, $fade ) );
 
+		/* Checkbox: + wird beim Offnen zum -. */
+		$out['plus_minus'] = ( ! empty( $in['plus_minus'] ) ) ? '1' : '0';
+
 		/* Farben: Hex oder rgba(). */
 		foreach ( [ 'btn_bg', 'box_bg' ] as $key ) {
 			$color = isset( $in[ $key ] ) ? trim( (string) $in[ $key ] ) : $defaults[ $key ];
@@ -307,6 +311,17 @@ final class HG_Content_Plus {
 							value="<?php echo esc_attr( $s['fade'] ); ?>"> ms</td>
 					</tr>
 					<tr>
+						<th scope="row"><?php esc_html_e( 'Aus + wird -', 'hg-content-plus' ); ?></th>
+						<td>
+							<label>
+								<input type="checkbox" value="1" id="mpii_plus_minus"
+									name="<?php echo esc_attr( self::OPTION_KEY ); ?>[plus_minus]"
+									<?php checked( $s['plus_minus'], '1' ); ?>>
+								<?php esc_html_e( 'Beim Öffnen des Popups aus dem + ein - machen (und zurück)', 'hg-content-plus' ); ?>
+							</label>
+						</td>
+					</tr>
+					<tr>
 						<th scope="row"><label for="mpii_btn_bg"><?php esc_html_e( 'Button: Hintergrundfarbe', 'hg-content-plus' ); ?></label></th>
 						<td><input type="text" class="regular-text" id="mpii_btn_bg"
 							name="<?php echo esc_attr( self::OPTION_KEY ); ?>[btn_bg]"
@@ -393,11 +408,11 @@ final class HG_Content_Plus {
 	public static function enqueue() {
 		$s = self::settings();
 
-		wp_register_style( 'hgcp', false, [], '3.2.2' );
+		wp_register_style( 'hgcp', false, [], '3.3.0' );
 		wp_enqueue_style( 'hgcp' );
 		wp_add_inline_style( 'hgcp', self::css( $s ) );
 
-		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.2.2', true );
+		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.3.0', true );
 		wp_localize_script( 'hgcp', 'HGCPlus', [
 			'ajax'     => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'mpii_get' ),
@@ -411,6 +426,7 @@ final class HG_Content_Plus {
 			'fade'     => (int) $s['fade'],
 			'plusWidth' => max( 1, min( 80, (int) $s['plus_width'] ) ),
 			'plusLen'   => max( 1, min( 80, (int) $s['plus_len'] ) ),
+			'plusMinus' => ( '1' === $s['plus_minus'] ),
 		] );
 	}
 
