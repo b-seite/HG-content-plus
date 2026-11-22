@@ -102,19 +102,26 @@
 		box.style.top = Math.round(top) + 'px';
 	}
 
-	/* SVG-Plus: exakt zentriert, unabhaengig von Fonts. */
+	/* SVG-Plus: exakt zentriert, unabhaengig von Fonts. Balkendicke (+-width) und
+	   Balkenlaenge (+-len) kommen aus den Einstellungen (in % des Buttons, also
+	   immer proportional zum Kreis). */
 	function plusSvg() {
+		var c = conf();
+		var strokeWidth = Math.max(1, Math.min(80, Math.round(num(c.plusWidth, 10))));
+		var barLen = Math.max(1, Math.min(80, Math.round(num(c.plusLen, 56))));
+		var inset = (100 - barLen) / 2; /* Balkenlaenge zentriert im 100x100-ViewBox */
+
 		var ns = 'http://www.w3.org/2000/svg';
 		var svg = document.createElementNS(ns, 'svg');
 		svg.setAttribute('viewBox', '0 0 100 100');
 		svg.setAttribute('aria-hidden', 'true');
 		svg.setAttribute('focusable', 'false');
 
-		[ 'M50 22 V78', 'M22 50 H78' ].forEach(function (d) {
+		[ 'M50 ' + inset + ' V' + (100 - inset), 'M' + inset + ' 50 H' + (100 - inset) ].forEach(function (d) {
 			var line = document.createElementNS(ns, 'path');
 			line.setAttribute('d', d);
 			line.setAttribute('stroke', 'rgba(0,0,0,0.7)');
-			line.setAttribute('stroke-width', '10');
+			line.setAttribute('stroke-width', strokeWidth);
 			line.setAttribute('stroke-linecap', 'round');
 			line.setAttribute('fill', 'none');
 			svg.appendChild(line);

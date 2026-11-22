@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HG Content Plus
  * Description: Blendet über Bildern, deren Container die Klasse "mpii" trägt, einen runden "+-Button ein, der einen dem Bild zugeordneten, formatierten Text zeigt (Text pro Bild in der Mediathek, Editor auf der Datei-Detailseite). Optik unter Einstellungen → Content Plus. Updates erfolgen automatisch aus dem GitHub-Repo HG-content-plus.
- * Version: 3.1.0
+ * Version: 3.2.0
  * Author: Boris Beplate
  * License: GPL-2.0-or-later
  * Text Domain: hg-content-plus
@@ -38,6 +38,8 @@ final class HG_Content_Plus {
 			'off_x'      => '0',
 			'off_y'      => '0',
 			'fade'       => '500',
+			'plus_width' => '10',
+			'plus_len'   => '56',
 		];
 	}
 
@@ -180,7 +182,7 @@ final class HG_Content_Plus {
 		$out['vert_pos'] = ( isset( $in['vert_pos'] ) && 'oben' === $in['vert_pos'] ) ? 'oben' : 'unten';
 
 		/* Zahlenwerte (px). */
-		foreach ( [ 'btn_size', 'btn_side', 'btn_bottom', 'off_x', 'off_y' ] as $key ) {
+		foreach ( [ 'btn_size', 'btn_side', 'btn_bottom', 'off_x', 'off_y', 'plus_width', 'plus_len' ] as $key ) {
 			$number = isset( $in[ $key ] ) ? (int) $in[ $key ] : (int) $defaults[ $key ];
 			$min    = ( 'btn_size' === $key ) ? 24 : -500;
 			$max    = 500;
@@ -190,6 +192,10 @@ final class HG_Content_Plus {
 			if ( 'btn_side' === $key || 'btn_bottom' === $key ) {
 				$min = 0;
 				$max = 200;
+			}
+			if ( 'plus_width' === $key || 'plus_len' === $key ) {
+				$min = 1;
+				$max = 80;
 			}
 			$out[ $key ] = (string) max( $min, min( $max, $number ) );
 		}
@@ -235,6 +241,20 @@ final class HG_Content_Plus {
 								value="<?php echo esc_attr( $s['btn_size'] ); ?>"> px
 							<p class="description"><?php esc_html_e( 'Durchmesser des runden "+-Buttons. Schriftgröße passt sich automatisch an.', 'hg-content-plus' ); ?></p>
 						</td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="mpii_plus_width"><?php esc_html_e( 'Plus: Balkendicke', 'hg-content-plus' ); ?></label></th>
+						<td><input type="number" min="1" max="80" step="1" id="mpii_plus_width"
+							name="<?php echo esc_attr( self::OPTION_KEY ); ?>[plus_width]"
+							value="<?php echo esc_attr( $s['plus_width'] ); ?>"> %
+							<p class="description"><?php esc_html_e( 'Dicke (Strichstärke) der zwei Kreuzbalken relativ zum Buttondurchmesser. Standard 10 (= klassisches Plus).', 'hg-content-plus' ); ?></p></td>
+					</tr>
+					<tr>
+						<th scope="row"><label for="mpii_plus_len"><?php esc_html_e( 'Plus: Balkenlänge', 'hg-content-plus' ); ?></label></th>
+						<td><input type="number" min="1" max="80" step="1" id="mpii_plus_len"
+							name="<?php echo esc_attr( self::OPTION_KEY ); ?>[plus_len]"
+							value="<?php echo esc_attr( $s['plus_len'] ); ?>"> %
+							<p class="description"><?php esc_html_e( 'Länge der Balken relativ zum Buttondurchmesser (Standard 56 = 56 % = klassisches Plus). Skaliert automatisch mit der Buttongröße.', 'hg-content-plus' ); ?></p></td>
 					</tr>
 					<tr>
 						<th scope="row"><?php esc_html_e( 'Button: Position (Seite)', 'hg-content-plus' ); ?></th>
@@ -373,11 +393,11 @@ final class HG_Content_Plus {
 	public static function enqueue() {
 		$s = self::settings();
 
-		wp_register_style( 'hgcp', false, [], '3.0.2' );
+		wp_register_style( 'hgcp', false, [], '3.2.0' );
 		wp_enqueue_style( 'hgcp' );
 		wp_add_inline_style( 'hgcp', self::css( $s ) );
 
-		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.1.0', true );
+		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.2.0', true );
 		wp_localize_script( 'hgcp', 'HGCPlus', [
 			'ajax'     => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'mpii_get' ),
@@ -389,6 +409,8 @@ final class HG_Content_Plus {
 			'offX'     => (float) $s['off_x'],
 			'offY'     => (float) $s['off_y'],
 			'fade'     => (int) $s['fade'],
+			'plusWidth' => max( 1, min( 80, (int) $s['plus_width'] ) ),
+			'plusLen'   => max( 1, min( 80, (int) $s['plus_len'] ) ),
 		] );
 	}
 
