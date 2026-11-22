@@ -1,4 +1,4 @@
-/* HG Content Plus – Frontend (v3.0.1: Popup-Platzierung über Layout-offsets statt getBoundingClientRect) */
+/* HG Content Plus – Frontend (v3.1.0: SVG-Plus, Klick-Blocker Popup, Batch-Ajax für gemeinsames Erscheinen) */
 (function () {
 	'use strict';
 
@@ -56,16 +56,10 @@
 		btn.style.width = size + 'px';
 		btn.style.height = size + 'px';
 
-		if (pos.vert === 'oben') {
-			btn.style.top = distV + 'px';
-		} else {
-			btn.style.bottom = distV + 'px';
-		}
-		if (pos.side === 'links') {
-			btn.style.left = distS + 'px';
-		} else {
-			btn.style.right = distS + 'px';
-		}
+		if (pos.vert === 'oben') { btn.style.top = distV + 'px'; }
+		else { btn.style.bottom = distV + 'px'; }
+		if (pos.side === 'links') { btn.style.left = distS + 'px'; }
+		else { btn.style.right = distS + 'px'; }
 		return pos;
 	}
 
@@ -73,8 +67,8 @@
 	   0/0 = Kante des Popups am Mittelpunkt; das Popup öffnet automatisch zur
 	   gegenüberliegenden Seite des Buttons. Rechnet rein auf Layout-Basis
 	   (offsetLeft/offsetTop im Host-Koordinatensystem), dadurch robust gegen
-	   Transforms, kollabierte Vorfahren und Lazy-Load-Effrscheinen. */
-	function placeBox(btn, box, img, hostEl, pos) {
+	   Transforms, kollabierte Vorfahren und Lazy-Load. */
+	function placeBox(btn, box, img, pos) {
 		var c = conf();
 		var offX = num(c.offX, 0);
 		var offY = num(c.offY, 0);
@@ -88,16 +82,10 @@
 		var by = btn.offsetTop + btn.offsetHeight / 2 + offY;
 
 		var left, top;
-		if (pos.side === 'rechts') {
-			left = bx - w;
-		} else {
-			left = bx;
-		}
-		if (pos.vert === 'unten') {
-			top = by - h;
-		} else {
-			top = by;
-		}
+		if (pos.side === 'rechts') { left = bx - w; }
+		else { left = bx; }
+		if (pos.vert === 'unten') { top = by - h; }
+		else { top = by; }
 
 		/* Innerhalb der Bildfläche (+ Button-Bereich) halten. */
 		var imgL = img.offsetLeft;
@@ -114,36 +102,30 @@
 		box.style.top = Math.round(top) + 'px';
 	}
 
-	function handleImg(img) {
-		if (img.dataset.hgcpDone) { return; }
-		img.dataset.hgcpDone = '1';
+	/* SVG-Plus: exakt zentriert, unabhaengig von Fonts. */
+	function plusSvg() {
+		var ns = 'http://www.w3.org/2000/svg';
+		var svg = document.createElementNS(ns, 'svg');
+		svg.setAttribute('viewBox', '0 0 100 100');
+		svg.setAttribute('aria-hidden', 'true');
+		svg.setAttribute('focusable', 'false');
 
-		var src = identify(img);
-		if (!src) { img.dataset.hgcpDone = ''; return; }
-
-		var container = img.closest('.mpii');
-		if (!container) { return; }
-
-		var data = new FormData();
-		data.append('action', 'mpii_get');
-		data.append('nonce', (conf().nonce) || '');
-		data.append('src', src);
-
-		fetch((conf().ajax) || '/wp-admin/admin-ajax.php', { method: 'POST', body: data, credentials: 'same-origin' })
-			.then(function (r) { return r.json(); })
-			.then(function (res) {
-				var html = res && res.success && res.data && res.data.html ? res.data.html : '';
-				if (!html) { return; }
-				build(img, container, html);
-			})
-			.catch(function () { /* still: kein Button */ });
+		[ 'M50 22 V78', 'M22 50 H78' ].forEach(function (d) {
+			var line = document.createElementNS(ns, 'path');
+			line.setAttribute('d', d);
+			line.setAttribute('stroke', 'rgba(0,0,0,0.7)');
+			line.setAttribute('stroke-width', '10');
+			line.setAttribute('stroke-linecap', 'round');
+			line.setAttribute('fill', 'none');
+			svg.appendChild(line);
+		});
+		return svg;
 	}
 
 	function build(img, container, html) {
 		var c = conf();
 		/* Host = der direkte Anker/das direkte Elternelement des Bildes; Inline-Styles
-		   erzwingen einen sauberen Positionskontext (robust gegen Theme-Layouts).
-		   host ist damit der offsetParent für Button, Box UND Bild. */
+		   erzwingen einen sauberen Positionskontext (robust gegen Theme-Layouts). */
 		var direct = img.parentNode;
 		var host = direct && direct.tagName === 'A' ? direct : (direct || container);
 
@@ -159,12 +141,19 @@
 		box.setAttribute('hidden', 'hidden');
 		box.style.margin = '0';
 
+		/* Klicks im Popup duerfen NICHT zur Lightbox/durch den Anker durchreichen. */
+		box.addEventListener('click', function (e) {
+			e.preventDefault();
+			e.stopPropagation();
+		}, false);
+		box.addEventListener('mousedown', function (e) { e.stopPropagation(); }, false);
+
 		var btn = document.createElement('button');
 		btn.type = 'button';
 		btn.className = 'mpii-toggle';
 		btn.setAttribute('aria-expanded', 'false');
 		btn.setAttribute('aria-label', 'Bildinformationen anzeigen');
-		btn.innerHTML = '<span>+</span>';
+		btn.appendChild(plusSvg());
 
 		host.appendChild(btn);
 		host.appendChild(box);
@@ -186,7 +175,7 @@
 				/* Erst unsichtbar Platz messen, dann positionieren, dann einblenden. */
 				box.style.visibility = 'hidden';
 				box.removeAttribute('hidden');
-				placeBox(btn, box, img, host, pos);
+				placeBox(btn, box, img, pos);
 				box.style.visibility = '';
 				void box.offsetWidth; /* Reflow, damit die Opacity-Transition greift */
 				box.classList.add('mpii-open');
@@ -195,22 +184,74 @@
 		});
 	}
 
+	/* ---------- Batch: alle Bilder einer Seite in EINEM Ajax-Request ---------- */
+
+	var pending = new Map(); /* src -> [img, ...] */
+	var flushTimer = null;
+
+	function queueImg(img) {
+		if (img.dataset.hgcpDone) { return; }
+		var container = img.closest('.mpii');
+		if (!container) { return; }
+		img.dataset.hgcpDone = '1';
+
+		var src = identify(img);
+		if (!src) { img.dataset.hgcpDone = ''; return; }
+
+		if (!pending.has(src)) { pending.set(src, []); }
+		pending.get(src).push(img);
+
+		/* Kurzer Sammeltakt: Bilder, die fast gleichzeitig gefunden werden, gehen in einen Request. */
+		if (flushTimer) { window.clearTimeout(flushTimer); }
+		flushTimer = window.setTimeout(flush, 150);
+	}
+
+	function flush() {
+		flushTimer = null;
+		if (pending.size === 0) { return; }
+
+		var data = new FormData();
+		data.append('action', 'mpii_get_batch');
+		data.append('nonce', (conf().nonce) || '');
+		pending.forEach(function (imgs, src) {
+			data.append('srcs[]', src);
+		});
+		var batch = new Map(pending);
+		pending.clear();
+
+		fetch((conf().ajax) || '/wp-admin/admin-ajax.php', { method: 'POST', body: data, credentials: 'same-origin' })
+			.then(function (r) { return r.json(); })
+			.then(function (res) {
+				var map = res && res.success && res.data && res.data.map ? res.data.map : {};
+				batch.forEach(function (imgs, src) {
+					var html = map[src] || '';
+					if (!html) { return; }
+					imgs.forEach(function (img) {
+						if (!img.isConnected) { return; }
+						var container = img.closest('.mpii');
+						if (container) { build(img, container, html); }
+					});
+				});
+			})
+			.catch(function () { /* still: kein Button */ });
+	}
+
 	function scan() {
 		document.querySelectorAll('.mpii').forEach(function (container) {
-			container.querySelectorAll('img').forEach(handleImg);
+			container.querySelectorAll('img').forEach(queueImg);
 		});
 	}
 
 	function init() {
 		scan();
-		/* Justified-Gallery/Lazy-Load: Bilder erscheinen teils erst später.
-		   Deshalb bis 20 s nach Seitenstart weiterhin nach neuen Bildern suchen. */
+		/* Justified-Gallery/Lazy-Load: Bilder erscheinen teils erst spaeter.
+		   Schneller Scan-Takt (300 ms, bis ~18 s), damit Buttons frueh auftauchen. */
 		var rounds = 0;
 		var timer = window.setInterval(function () {
 			scan();
 			rounds += 1;
-			if (rounds >= 25) { window.clearInterval(timer); }
-		}, 800);
+			if (rounds >= 60) { window.clearInterval(timer); }
+		}, 300);
 
 		if (window.MutationObserver) {
 			new MutationObserver(function (muts) {
@@ -218,14 +259,17 @@
 					m.addedNodes && m.addedNodes.forEach(function (n) {
 						if (n.nodeType !== 1) { return; }
 						if (n.tagName === 'IMG' && n.closest('.mpii')) {
-							handleImg(n);
+							queueImg(n);
 						} else if (n.querySelectorAll) {
-							n.querySelectorAll('.mpii img').forEach(handleImg);
+							n.querySelectorAll('.mpii img').forEach(queueImg);
 						}
 					});
 				});
 			}).observe(document.body, { childList: true, subtree: true });
 		}
+
+		/* Nach vollständigem Laden (Bilder/JG fertig) direkt nochmal scuern und flushen. */
+		window.addEventListener('load', function () { scan(); flush(); });
 	}
 
 	if (document.readyState === 'loading') {

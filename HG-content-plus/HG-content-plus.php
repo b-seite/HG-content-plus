@@ -2,7 +2,7 @@
 /**
  * Plugin Name: HG Content Plus
  * Description: Blendet über Bildern, deren Container die Klasse "mpii" trägt, einen runden "+-Button ein, der einen dem Bild zugeordneten, formatierten Text zeigt (Text pro Bild in der Mediathek, Editor auf der Datei-Detailseite). Optik unter Einstellungen → Content Plus. Updates erfolgen automatisch aus dem GitHub-Repo HG-content-plus.
- * Version: 3.0.2
+ * Version: 3.1.0
  * Author: Boris Beplate
  * License: GPL-2.0-or-later
  * Text Domain: hg-content-plus
@@ -63,6 +63,10 @@ final class HG_Content_Plus {
 		/* Ajax: Text zu einer Bild-URL liefern (für Gäste und Eingeloggte). */
 		add_action( 'wp_ajax_mpii_get', [ __CLASS__, 'ajax_get' ] );
 		add_action( 'wp_ajax_nopriv_mpii_get', [ __CLASS__, 'ajax_get' ] );
+
+		/* Ajax: Infotexte für ALLE Bilder einer Seite in einem Sammel-Request. */
+		add_action( 'wp_ajax_mpii_get_batch', [ __CLASS__, 'ajax_get_batch' ] );
+		add_action( 'wp_ajax_nopriv_mpii_get_batch', [ __CLASS__, 'ajax_get_batch' ] );
 	}
 
 	private static function settings() {
@@ -373,7 +377,7 @@ final class HG_Content_Plus {
 		wp_enqueue_style( 'hgcp' );
 		wp_add_inline_style( 'hgcp', self::css( $s ) );
 
-		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.0.2', true );
+		wp_enqueue_script( 'hgcp', plugins_url( 'hgcp.js', __FILE__ ), [], '3.1.0', true );
 		wp_localize_script( 'hgcp', 'HGCPlus', [
 			'ajax'     => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'mpii_get' ),
@@ -400,7 +404,7 @@ final class HG_Content_Plus {
 .mpii-host{position:relative;display:block}
 .mpii .mpii-toggle{position:absolute;width:{$size}px;height:{$size}px;border-radius:50%;background:{$btn_bg};border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;z-index:2;transition:background .25s ease}
 .mpii .mpii-toggle:hover{filter:brightness(.92)}
-.mpii .mpii-toggle span{font-size:{$font}px;line-height:{$font}px;font-weight:600;color:rgba(0,0,0,.7);transform:translateY(-2px)}
+.mpii .mpii-toggle svg{width:54%;height:54%;display:block}
 .mpii .mpii-box{position:absolute;padding:10px 20px;line-height:1.8;background:{$box_bg};z-index:3;box-shadow:0 8px 20px rgba(0,0,0,.15);opacity:0;transition:opacity {$fade}ms ease;max-width:calc(100% - 8px)}
 .mpii .mpii-box.mpii-open{opacity:1}
 .mpii .mpii-box p:first-child{margin-top:0}
@@ -423,6 +427,25 @@ CSS;
 		$html          = $attachment_id ? (string) get_post_meta( $attachment_id, self::META_KEY, true ) : '';
 
 		wp_send_json_success( [ 'html' => $html ] );
+	}
+
+	/** Sammel-Endpunkt: liefert die Infotexte zu vielen Bild-URLs auf einmal (Map src => html). */
+	public static function ajax_get_batch() {
+		check_ajax_referer( 'mpii_get', 'nonce' );
+
+		$srcs = [];
+		if ( isset( $_POST['srcs'] ) && is_array( $_POST['srcs'] ) ) {
+			$srcs = array_map( 'esc_url_raw', (array) wp_unslash( $_POST['srcs'] ) );
+		}
+		$srcs = array_slice( array_unique( array_filter( $srcs ) ), 0, 300 );
+
+		$map = [];
+		foreach ( $srcs as $src ) {
+			$attachment_id = self::attachment_id_by_url( $src );
+			$map[ $src ]   = $attachment_id ? (string) get_post_meta( $attachment_id, self::META_KEY, true ) : '';
+		}
+
+		wp_send_json_success( [ 'map' => $map ] );
 	}
 
 	/** URL -> Attachment-ID. Berücksichtigt Größen-Suffixe (-1024x768), -scaled und CDN-URLs (Optimole). */
